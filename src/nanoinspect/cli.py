@@ -7,7 +7,8 @@ from .runtime import baseline, doctor, download, write_json, compare_baselines
 def main():
     parser = argparse.ArgumentParser(prog="nanoinspect")
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("doctor")
+    doctor_command = commands.add_parser("doctor")
+    doctor_command.add_argument("--output", default="runs/doctor.json")
     for name in ("download", "baseline", "inventory", "trace", "experiment"):
         command = commands.add_parser(name)
         command.add_argument("--config", default={"trace": "configs/trace_short.yaml",
@@ -27,7 +28,7 @@ def main():
     report.add_argument("--compare")
     args = parser.parse_args()
     if args.command == "doctor":
-        data = doctor(); write_json("runs/doctor.json", data)
+        data = doctor(); write_json(args.output, data)
     elif args.command == "download": data = download(args.config)
     elif args.command == "baseline":
         data = baseline(args.config, args.output, args.offline_check)
