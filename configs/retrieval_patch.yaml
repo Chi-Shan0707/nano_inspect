@@ -1,0 +1,39 @@
+# Section 6 experimental suite: retrieval behavior (Study A), clean-to-corrupted
+# patching (Study B) and contrastive steering (Study C). Merged over configs/model.yaml.
+seed: 0
+studies: [retrieval, patching, steering]
+max_batch_tokens: 12000      # equal-length batches; no padding is ever used
+max_batch: 64
+capture_max_bytes: 536870912 # 512 MiB hard budget per capture (estimated before running)
+
+retrieval:                    # Study A: baseline behavior grid
+  formats: [sentence, list]   # "The red box contains the apple." vs bare "red: apple" lines
+  n_facts: [2, 8, 16]         # distractors = n_facts - 1
+  filler_sentences: [0, 40, 160]   # neutral sentences between facts and query (distance)
+  pilot_examples: 20          # decides solvability; held-out results never feed back
+  heldout_examples: 50
+  solvable_accuracy: 0.9
+
+patching:                     # Study B: restore clean activations into corrupted runs
+  format: sentence
+  n_facts: 4
+  filler_sentences: 10
+  pilot_examples: 20
+  heldout_examples: 60
+  candidate_multiplier: 3
+  sites: [mixer_output, post_mixer_residual, mlp_output, residual_output]
+  positions: [value, query_key, final, control]
+  random_control_sites: [residual_output, mixer_output]
+  random_control_positions: [value, final]
+  random_control_seeds: [0, 1, 2]
+
+steering:                     # Study C: h' = h + alpha * v at one residual site
+  site: residual_output
+  candidate_layers: [3, 6, 9, 12, 15, 18]
+  layer: auto                 # chosen on the pilot split only
+  pilot_alpha: 0.25
+  alphas: [-0.5, -0.25, -0.125, -0.0625, 0.0, 0.0625, 0.125, 0.25, 0.5]  # x mean residual norm
+  random_seeds: [0, 1, 2, 3, 4]
+  heldout_prompts: 60
+  min_heldout: 50
+  generate_tokens: 12

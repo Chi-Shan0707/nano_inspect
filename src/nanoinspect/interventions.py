@@ -1,7 +1,7 @@
 """Scoped activation patching and additive steering at explicit token positions."""
 import torch
 from .sites import resolve_site
-from .capture import first_tensor, replace_first, normalize_positions
+from .capture import first_tensor, replace_first, per_row, row_indices
 
 
 class Intervention:
@@ -9,9 +9,17 @@ class Intervention:
 
     Positions are relative to the current forward input (``[0]`` or ``[-1]``
     addresses the single token of a cached decode step); ``"all"`` selects
-    every input position. A patch has shape ``[batch, positions, hidden]``.
+    every input position, and a list of equal-length lists gives aligned
+    per-row positions. A patch has shape ``[batch, positions, hidden]``.
     ``calls`` counts hook invocations so callers can confirm the declared site
     actually executed.
+
+    ``post_mixer_residual`` needs three hooks. Upstream stores the residual
+    before calling post_attention_layernorm, so replacing that norm's input
+    alone would change only the MLP input. The intervention therefore also
+    records the MLP output and rewrites the block output at the selected
+    positions as ``patched_residual + mlp_output``, the same BF16 addition the
+    unhooked block performs.
     """
     def __init__(self, model, layer, site, positions, *, patch=None, direction=None, alpha=0.0):
         if not positions:
@@ -19,46 +27,77 @@ class Intervention:
         if (patch is None) == (direction is None):
             raise ValueError("Specify exactly one of patch and direction")
         self.site = resolve_site(model, layer, site)
-        self.positions = positions if isinstance(positions, str) else tuple(positions)
+        self.block = resolve_site(model, layer, "residual_output").module
+        self.positions = positions if isinstance(positions, str) else \
+            [list(p) for p in positions] if per_row(positions) else tuple(positions)
         self.patch, self.direction, self.alpha = patch, direction, alpha
-        self.handle, self.calls = None, 0
+        self.handles, self.calls = [], 0
 
     def _apply(self, value):
         original = first_tensor(value)
         if original.ndim != 3:
             raise ValueError(f"Expected [batch, token, hidden], got {tuple(original.shape)}")
-        indices = normalize_positions(self.positions, original.shape[1])
+        index = row_indices(self.positions, original.shape[0], original.shape[1]).to(original.device)
+        rows = torch.arange(original.shape[0], device=original.device)[:, None]
         self.calls += 1
         result = original.clone()
         if self.patch is not None:
             replacement = self.patch.to(device=original.device, dtype=original.dtype)
-            expected = (original.shape[0], len(indices), original.shape[-1])
+            expected = (original.shape[0], index.shape[1], original.shape[-1])
             if tuple(replacement.shape) != expected:
                 raise ValueError(f"Patch shape {tuple(replacement.shape)} must equal selected shape {expected}")
-            result[:, indices, :] = replacement
+            result[rows, index] = replacement
         else:
             direction = self.direction.to(device=original.device, dtype=torch.float32)
             if tuple(direction.shape) != (original.shape[-1],):
                 raise ValueError("Direction must be a single hidden-width vector")
             if self.alpha == 0:
                 return value  # exact identity: zero strength must not even round-trip dtypes
-            shifted = original[:, indices, :].float() + self.alpha * direction
-            result[:, indices, :] = shifted.to(original.dtype)
+            shifted = original[rows, index].float() + self.alpha * direction
+            result[rows, index] = shifted.to(original.dtype)
         return replace_first(value, result)
 
+    def _residual_hooks(self):
+        """Carry a patched post-mixer residual through the block's residual path (see class docstring)."""
+        state = {}
+        def norm_input(module, args):
+            state["residual"] = self._apply(args[0])
+            return (state["residual"], *args[1:])
+        def mlp_output(module, args, out):
+            state["mlp"] = first_tensor(out)
+        def block_output(module, args, out):
+            if "residual" not in state:
+                return None
+            residual, mlp = state.pop("residual"), state.pop("mlp")
+            original = first_tensor(out)
+            index = row_indices(self.positions, original.shape[0], original.shape[1]).to(original.device)
+            rows = torch.arange(original.shape[0], device=original.device)[:, None]
+            result = original.clone()
+            result[rows, index] = residual[rows, index] + mlp[rows, index]
+            return replace_first(out, result)
+        return [self.site.module.register_forward_pre_hook(norm_input),
+                self.block.mlp.register_forward_hook(mlp_output),
+                self.block.register_forward_hook(block_output)]
+
     def __enter__(self):
-        if self.site.boundary == "input":
-            def pre_hook(module, args):
-                return (self._apply(args[0]), *args[1:])
-            self.handle = self.site.module.register_forward_pre_hook(pre_hook)
-        else:
-            self.handle = self.site.module.register_forward_hook(lambda module, args, out: self._apply(out))
+        try:
+            if self.site.name == "post_mixer_residual":
+                self.handles = self._residual_hooks()
+            elif self.site.boundary == "input":
+                def pre_hook(module, args):
+                    return (self._apply(args[0]), *args[1:])
+                self.handles = [self.site.module.register_forward_pre_hook(pre_hook)]
+            else:
+                self.handles = [self.site.module.register_forward_hook(lambda module, args, out: self._apply(out))]
+        except BaseException:
+            self.__exit__(None, None, None)
+            raise
         return self
 
     def __exit__(self, *exc):
-        if self.handle is not None:
-            self.handle.remove()
-            self.handle = None
+        for handle in self.handles:
+            handle.remove()
+        self.handles = []
         return False
 
 

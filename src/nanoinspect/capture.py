@@ -1,4 +1,5 @@
 """Bounded, exception-safe capture at semantic decoder sites."""
+import torch
 from .sites import resolve_site
 
 # Every capture record carries these keys (PLAN.md M3).
@@ -25,15 +26,33 @@ def normalize_positions(positions, length):
     return indices
 
 
+def per_row(positions):
+    """True when ``positions`` gives one aligned position list per batch row."""
+    return not isinstance(positions, str) and len(positions) > 0 and isinstance(positions[0], (list, tuple))
+
+
+def row_indices(positions, batch, length):
+    """``[batch, k]`` index tensor for shared positions or aligned per-row position lists."""
+    if not per_row(positions):
+        return torch.tensor([normalize_positions(positions, length)] * batch, dtype=torch.long)
+    if len(positions) != batch:
+        raise ValueError(f"{len(positions)} per-row position lists for batch size {batch}")
+    rows = [normalize_positions(p, length) for p in positions]
+    if len({len(r) for r in rows}) != 1:
+        raise ValueError("Per-row position lists must have equal lengths")
+    return torch.tensor(rows, dtype=torch.long)
+
+
 def select_positions(tensor, positions):
     if tensor.ndim != 3:
         raise ValueError(f"Expected [batch, token, hidden], got {tuple(tensor.shape)}")
-    return tensor[:, normalize_positions(positions, tensor.shape[1]), :]
+    index = row_indices(positions, tensor.shape[0], tensor.shape[1]).to(tensor.device)
+    return tensor[torch.arange(tensor.shape[0], device=tensor.device)[:, None], index]
 
 
 def estimate_bytes(selections, positions, *, batch_size, hidden_size, element_size, sequence_length=None):
     """Bytes a Capture will copy for one forward pass, computed before running it."""
-    count = sequence_length if isinstance(positions, str) else len(positions)
+    count = sequence_length if isinstance(positions, str) else len(positions[0]) if per_row(positions) else len(positions)
     if count is None:
         raise ValueError("sequence_length is required to estimate an 'all' position selection")
     return len(selections) * batch_size * count * hidden_size * element_size
@@ -60,7 +79,8 @@ class Capture:
         if not positions:
             raise ValueError("Explicit token positions are required")
         self.model, self.selections = model, list(selections)
-        self.positions = positions if isinstance(positions, str) else tuple(positions)
+        self.positions = positions if isinstance(positions, str) else \
+            [list(p) for p in positions] if per_row(positions) else tuple(positions)
         metadata = dict(metadata or {})
         for key in ("run", "phase", "token_ids", "model_revision"):
             metadata.setdefault(key, None)
@@ -73,30 +93,34 @@ class Capture:
         else:
             self.estimated_bytes = None
 
-    def _selected_token_ids(self, indices):
+    def _selected_token_ids(self, index):
         ids = self.metadata.get("token_ids")
         if ids is None:
             return None
-        rows = ids if ids and isinstance(ids[0], list) else [ids]
+        rows = ids if ids and isinstance(ids[0], list) else [ids] * len(index)
         offset = self.metadata.get("position_offset", 0)
-        return [[row[offset + p] if offset + p < len(row) else None for p in indices] for row in rows]
+        return [[row[offset + p] if offset + p < len(row) else None for p in positions]
+                for row, positions in zip(rows, index.tolist())]
 
     def _record(self, site, value):
         value = first_tensor(value)
         if value.ndim != 3:
             raise ValueError(f"Expected [batch, token, hidden], got {tuple(value.shape)}")
-        indices = normalize_positions(self.positions, value.shape[1])
-        size = value.shape[0] * len(indices) * value.shape[-1] * value.element_size()
+        index = row_indices(self.positions, value.shape[0], value.shape[1])
+        size = value.shape[0] * index.shape[1] * value.shape[-1] * value.element_size()
         if self.bytes_used + size > self.max_bytes:
             raise MemoryError(f"Capture requires {self.bytes_used + size} bytes, budget is {self.max_bytes}")
-        data = value[:, indices, :].detach().to(device="cpu", copy=True)
+        rows = torch.arange(value.shape[0], device=value.device)[:, None]
+        data = value[rows, index.to(value.device)].detach().to(device="cpu", copy=True)
+        indices = index[0].tolist() if not per_row(self.positions) else index.tolist()
         self.bytes_used += size
         stats = data.float()
         offset = self.metadata.get("position_offset", 0)
+        absolute = [[offset + p for p in row] for row in indices] if per_row(self.positions) else [offset + p for p in indices]
         record = {**{k: v for k, v in self.metadata.items() if k != "token_ids"},
                   "site": site.name, "layer": site.layer, "module_path": site.path, "boundary": site.boundary,
-                  "positions": [offset + p for p in indices], "input_positions": indices,
-                  "token_ids": self._selected_token_ids(indices), "axes": list(site.axes),
+                  "positions": absolute, "input_positions": indices,
+                  "token_ids": self._selected_token_ids(index), "axes": list(site.axes),
                   "source_shape": list(value.shape), "shape": list(data.shape),
                   "dtype": str(data.dtype), "bytes": size,
                   "mean": stats.mean().item(), "std": stats.std(unbiased=False).item(),

@@ -104,6 +104,41 @@ class CaptureInterventionTests(unittest.TestCase):
             Intervention(self.model, 0, "residual_output", [0], patch=torch.ones(1, 1, 4), direction=torch.ones(4))
         self.assertEqual(hook_count(self.model), 0)
 
+    def test_post_mixer_residual_patch_reaches_the_residual_path(self):
+        # Block: y = x + attn(x); out = y + mlp(norm(y)), all identities -> out = 2y.
+        baseline = self.model(self.x)
+        with Intervention(self.model, 0, "post_mixer_residual", [1], patch=torch.ones(1, 1, 4)) as patch:
+            patched = self.model(self.x)
+        with Intervention(self.model, 0, "residual_output", [1], patch=torch.full((1, 1, 4), 2.0)):
+            equivalent = self.model(self.x)
+        self.assertEqual(patch.calls, 1)
+        torch.testing.assert_close(patched, equivalent, rtol=0, atol=0)  # residual and MLP both see the patch
+        torch.testing.assert_close(patched[:, [0, 2]], baseline[:, [0, 2]], rtol=0, atol=0)
+        with Intervention(self.model, 0, "post_mixer_residual", "all", direction=torch.ones(4), alpha=0.0):
+            torch.testing.assert_close(self.model(self.x), baseline, rtol=0, atol=0)
+        with Intervention(self.model, 0, "post_mixer_residual", [0], direction=torch.ones(4), alpha=1.0):
+            shifted = self.model(self.x)
+        torch.testing.assert_close(shifted[:, 0], baseline[:, 0] + 8.0, rtol=0, atol=0)  # +1, x2 by block 0 MLP, x4 by block 1
+        self.assertEqual(hook_count(self.model), 0)
+
+    def test_per_row_positions(self):
+        x = torch.arange(24, dtype=torch.float32).reshape(2, 3, 4)
+        baseline = self.model(x)
+        with Capture(self.model, [(0, "residual_input")], positions=[[0], [2]],
+                     metadata={"token_ids": [[1, 2, 3], [4, 5, 6]]}) as capture:
+            self.model(x)
+        record = capture.records[0]
+        torch.testing.assert_close(record["tensor"], torch.stack([x[0, [0]], x[1, [2]]]))
+        self.assertEqual(record["positions"], [[0], [2]])
+        self.assertEqual(record["token_ids"], [[1], [6]])
+        with Intervention(self.model, 0, "residual_input", [[0], [2]], patch=torch.zeros(2, 1, 4)):
+            patched = self.model(x)
+        changed = (patched != baseline).any(-1)
+        self.assertEqual(changed.tolist(), [[True, False, False], [False, False, True]])
+        with self.assertRaises(ValueError):
+            with Intervention(self.model, 0, "residual_input", [[0], [1, 2]], patch=torch.zeros(2, 1, 4)):
+                self.model(x)
+
     def test_contrastive_and_random_directions(self):
         direction, magnitude = contrastive_direction(torch.tensor([[2., 0.], [4., 0.]]), torch.zeros(2, 2))
         torch.testing.assert_close(direction, torch.tensor([1., 0.]))

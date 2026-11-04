@@ -2,6 +2,9 @@
 
 ``post_mixer_residual`` is the input to post_attention_layernorm, i.e. the
 sum of the mixer output and the incoming residual in Qwen3.5's decoder block.
+Capturing that input is exact. An intervention there must also update the
+residual path, which upstream copies before the norm; see
+``interventions.Intervention``.
 """
 from dataclasses import dataclass
 
