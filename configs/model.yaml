@@ -1,0 +1,9 @@
+model_id: Qwen/Qwen3.5-0.8B
+revision: 4d58a7b524cd33ed843d5125be8cd8f0a452d9bf
+model_dir: models/Qwen3.5-0.8B
+device: cuda
+dtype: bfloat16
+attn_implementation: eager
+seed: 0
+max_new_tokens: 24
+prompt: "Reply with one word: What is the capital of France?"
