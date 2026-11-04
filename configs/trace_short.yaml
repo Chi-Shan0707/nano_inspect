@@ -1,0 +1,15 @@
+# M2 computation microscope: one short retrieval prompt traced through one
+# gated-delta layer and one full-attention layer. Merged over configs/model.yaml.
+prompt: "Facts:\nThe red box contains the apple.\nThe blue box contains the coin.\nQuestion: What does the blue box contain?\nAnswer: The blue box contains the"
+chat_template: false        # raw completion keeps the answer a single next token
+layer: [14, 15]             # 14 = linear_attention (gated delta), 15 = full_attention; chosen because
+                            # zero-ablating layer 14's mixer at the final token removes most of the coin-vs-apple margin
+token: [-1]                 # final position; its next-token prediction is the answer
+head: auto                  # per layer: head with the largest direct coin-vs-apple logit effect (or an integer)
+site: [residual_input, mixer_output, post_mixer_residual, mlp_output, residual_output]
+compare_tokens: [" coin", " apple"]   # target vs distractor for logit effects
+padding_tokens: 3
+padding_sweep: [1, 3, 8]
+max_trace_tokens: 128
+capture_max_bytes: 8388608
+calibration_dtypes: [float32]  # repeat cross-kernel and baseline measurements in FP32

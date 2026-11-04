@@ -1,7 +1,7 @@
 """Command-line entry points. All model loads are local-only."""
 import argparse
 import json
-from .runtime import baseline, doctor, download, write_json, load_model, read_config, compare_baselines
+from .runtime import baseline, doctor, download, write_json, compare_baselines
 
 
 def main():
@@ -10,7 +10,8 @@ def main():
     commands.add_parser("doctor")
     for name in ("download", "baseline", "inventory", "trace", "experiment"):
         command = commands.add_parser(name)
-        command.add_argument("--config", default="configs/model.yaml")
+        command.add_argument("--config", default={"trace": "configs/trace_short.yaml",
+                                                  "experiment": "configs/retrieval_patch.yaml"}.get(name, "configs/model.yaml"))
         command.add_argument("--output", default=f"runs/{name}")
         if name == "baseline":
             command.add_argument("--offline-check", action="store_true")
@@ -38,15 +39,19 @@ def main():
         from .reporting import generate_report
         data = generate_report(args.run, compare=args.compare)
     elif args.command == "trace":
-        from .trace import run_trace
-        cfg = read_config(args.config)
-        for key in ("prompt", "layer", "token", "head", "site"):
-            if getattr(args, key) is not None: cfg[key] = getattr(args, key)
-        data = run_trace(load_model(cfg), cfg, args.output)
-    else:
-        raise SystemExit("Trace/experiment implementation is being integrated.")
+        from .trace import run_trace_command
+        overrides = {key: getattr(args, key) for key in ("prompt", "layer", "token", "head", "site")}
+        data = run_trace_command(args.config, args.output, overrides)
+        print(json.dumps(data["parity_summary"]))
+        if "calibration" in data:
+            print(json.dumps({"calibration_all_passed": data["calibration"]["all_passed"]}))
+        if not data["parity_summary"]["all_passed"] or not data.get("calibration", {}).get("all_passed", True):
+            raise SystemExit("Trace parity failed; see trace.json")
+    elif args.command == "experiment":
+        from .experiments import run_experiment_command
+        data = run_experiment_command(args.config, args.output)
     if isinstance(data, dict):
-        print(json.dumps({k: v for k, v in data.items() if k in ["kind", "generation", "elapsed_seconds", "accounting", "cuda_available", "gpu", "model_dir"]}, indent=2, default=lambda x: sorted(x) if isinstance(x, set) else str(x)))
+        print(json.dumps({k: v for k, v in data.items() if k in ["kind", "generation", "elapsed_seconds", "accounting", "cuda_available", "gpu", "model_dir", "summary"]}, indent=2, default=lambda x: sorted(x) if isinstance(x, set) else str(x)))
     else: print(data)
 
 
