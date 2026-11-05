@@ -4,7 +4,7 @@ This checklist tracks the original `PLAN.md` scope. A checkbox is only checked
 after inspecting the corresponding executable result and retained artifact.
 
 - [x] M0: dedicated conda environment, reproducible dependency locks, hardware and dtype policy.
-  - Evidence: [`environment.yml`](../environment.yml), [`conda-linux-64.lock`](../conda-linux-64.lock), [`requirements.lock`](../requirements.lock), [`scripts/bootstrap.sh`](../scripts/bootstrap.sh), [`runs/doctor.json`](../runs/doctor.json), [`runs/repro/fresh-env-verification.json`](../runs/repro/fresh-env-verification.json).
+  - Evidence: [`environment.yml`](../environment.yml), [`conda-linux-64.lock`](../conda-linux-64.lock), [`requirements.lock`](../requirements.lock), [`scripts/bootstrap.sh`](../scripts/bootstrap.sh), [`runs/doctor.json`](../runs/doctor.json), [`runs/repro/bootstrap.log`](../runs/repro/bootstrap.log), [`runs/repro/baseline/comparison.json`](../runs/repro/baseline/comparison.json).
 - [x] M0: complete ModelScope snapshot, revision identity and artifact hashes; local-only loading with loading-key review.
   - Evidence: [`models/Qwen3.5-0.8B/nanoinspect_provenance.json`](../models/Qwen3.5-0.8B/nanoinspect_provenance.json), [`src/nanoinspect/runtime.py`](../src/nanoinspect/runtime.py), [`runs/download-verified.log`](../runs/download-verified.log).
 - [x] M0: deterministic baseline and second offline execution, tokenizer/template/settings, selected logits and IDs, timing and memory.
@@ -28,7 +28,7 @@ after inspecting the corresponding executable result and retained artifact.
 - [x] M3: scoped semantic capture, metadata, budget estimate/enforcement, cloned mutable observations and exception cleanup.
   - Evidence: [`src/nanoinspect/sites.py`](../src/nanoinspect/sites.py), [`src/nanoinspect/capture.py`](../src/nanoinspect/capture.py), [`tests/test_capture_interventions.py`](../tests/test_capture_interventions.py).
 - [x] M3: clean-to-corrupt patching, exact position/site isolation, zero intervention and read-only parity, repeat/reset checks.
-  - Evidence: [`src/nanoinspect/interventions.py`](../src/nanoinspect/interventions.py), [`src/nanoinspect/experiments/patching.py`](../src/nanoinspect/experiments/patching.py), [`runs/experiment/experiment.json`](../runs/experiment/experiment.json) (`studies.patching.controls`, all 10 controls passed).
+  - Evidence: [`src/nanoinspect/interventions.py`](../src/nanoinspect/interventions.py), [`src/nanoinspect/experiments/retrieval.py`](../src/nanoinspect/experiments/retrieval.py) (`study_b`), [`runs/experiment/experiment.json`](../runs/experiment/experiment.json) (`studies.patching.controls`, all 10 controls passed).
 - [x] M3: training-only aligned contrastive direction, signed strength sweep, matched random controls, prefill/decode policies.
   - Evidence: [`src/nanoinspect/experiments/steering.py`](../src/nanoinspect/experiments/steering.py), [`runs/experiment/experiment.json`](../runs/experiment/experiment.json) (`studies.steering`), [`runs/experiment/details/steering_directions.pt`](../runs/experiment/details/steering_directions.pt).
 - [x] Studies: approximately 20 pilot examples; fixed held-out set of at least 50 where feasible; baseline-solvable task selection.
@@ -37,10 +37,15 @@ after inspecting the corresponding executable result and retained artifact.
   - Evidence: [`runs/experiment/details/retrieval_examples.json`](../runs/experiment/details/retrieval_examples.json), [`runs/experiment/details/patching_examples.json`](../runs/experiment/details/patching_examples.json), [`runs/experiment/details/steering_examples.json`](../runs/experiment/details/steering_examples.json), [`runs/experiment/details/steering_generations.json`](../runs/experiment/details/steering_generations.json).
 - [x] Reports: readable HTML/Markdown, plots, expandable tables, run comparison and artifact/source links.
   - Evidence: [`src/nanoinspect/reporting.py`](../src/nanoinspect/reporting.py), [`runs/inventory/report.html`](../runs/inventory/report.html), [`runs/trace/report.html`](../runs/trace/report.html), [`runs/experiment/report.html`](../runs/experiment/report.html), [`runs/baseline-offline/report.html`](../runs/baseline-offline/report.html).
+- [x] Workbench: `nanoinspect serve` exposes architecture, logit lens, mixer internals, patching and steering on localhost.
+  - Evidence: [`src/nanoinspect/server.py`](../src/nanoinspect/server.py), [`src/nanoinspect/workbench.py`](../src/nanoinspect/workbench.py), [`tests/test_workbench.py`](../tests/test_workbench.py).
 - [x] Findings: question, prediction, controlled change, observation, alternatives and next discriminating experiment.
   - Evidence: [`docs/findings.md`](findings.md).
-- [x] Final: documented CLI commands execute, tests pass, fresh-environment reproduction verified, temporary artifacts/processes cleaned up.
-  - Evidence: [`README.md`](../README.md), [`tests/`](../tests/), [`runs/repro/fresh-env-verification.json`](../runs/repro/fresh-env-verification.json).
+- [x] Final: documented CLI commands execute, tests pass, temporary artifacts/processes cleaned up.
+  - Evidence: [`README.md`](../README.md), [`tests/`](../tests/), [`runs/tests.log`](../runs/tests.log) (38 passed, none skipped), [`runs/final-check.json`](../runs/final-check.json) (link check and cleanup record).
+- [x] Rebuild: a second environment built by `scripts/bootstrap.sh` reproduced the offline baseline bit-identically.
+  - Evidence: [`runs/repro/bootstrap.log`](../runs/repro/bootstrap.log), [`runs/repro/doctor.json`](../runs/repro/doctor.json), [`runs/repro/baseline/comparison.json`](../runs/repro/baseline/comparison.json).
+  - Deviation: that rebuild used a temporary `nano-interpretability-repro` environment (since removed), not the dedicated environment. Package sets were not compared exhaustively; the log shows it received `setuptools 81.0.0` (the dedicated environment has `78.1.0`) because `requirements.lock` does not pin setuptools.
 
 ## Documented limitations
 

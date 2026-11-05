@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nanoinspect · learn Qwen3.5 from the inside</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="brand"><b>nanoinspect</b><span>interpretability workbench</span></div>
+  <nav id="tabs" aria-label="Views">
+    <button data-tab="guide">Start here</button>
+    <button data-tab="architecture"><span class="n">1</span>Architecture</button>
+    <button data-tab="walkthrough"><span class="n">2</span>Layer walkthrough</button>
+    <button data-tab="mixer"><span class="n">3</span>Mixer maps</button>
+    <button data-tab="lens"><span class="n">4</span>Logit lens</button>
+    <button data-tab="patch"><span class="n">5</span>Patching</button>
+    <button data-tab="steer"><span class="n">6</span>Steering</button>
+    <button data-tab="runs">Reports</button>
+  </nav>
+  <span id="status" class="pill" title="model status">connecting…</span>
+</header>
+<main>
+  <section id="guide" class="tab"></section>
+  <section id="architecture" class="tab"></section>
+  <section id="walkthrough" class="tab"></section>
+  <section id="mixer" class="tab"></section>
+  <section id="lens" class="tab"></section>
+  <section id="patch" class="tab"></section>
+  <section id="steer" class="tab"></section>
+  <section id="runs" class="tab"></section>
+</main>
+<div id="tooltip" role="tooltip"></div>
+<script type="module" src="/static/js/main.js"></script>
+</body>
+</html>

@@ -26,7 +26,15 @@ def main():
     report = commands.add_parser("report")
     report.add_argument("--run", required=True)
     report.add_argument("--compare")
+    serve = commands.add_parser("serve", help="Interactive workbench on localhost")
+    serve.add_argument("--config", default="configs/model.yaml")
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8765)
+    serve.add_argument("--no-preload", action="store_true", help="Load the model on the first analysis request")
     args = parser.parse_args()
+    if args.command == "serve":
+        from .server import serve as run_server
+        return run_server(args.host, args.port, args.config, preload=not args.no_preload)
     if args.command == "doctor":
         data = doctor(); write_json(args.output, data)
     elif args.command == "download": data = download(args.config)
