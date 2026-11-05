@@ -206,10 +206,9 @@ nano_inspect/
 │   ├── server.py  web/   标准库 HTTP 服务器与浏览器前端
 │   └── cli.py            `nanoinspect` 命令
 ├── configs/              模型、trace 和实验配置
-├── docs/                 架构说明（EN / 中文）、实验发现、验收记录
+├── docs/                 架构说明（EN / 中文）与实验发现
 ├── tests/                38 个测试（随机初始化的小模型 + 真实 checkpoint 上的集成测试）
-├── scripts/              bootstrap.sh、walkthrough.py
-└── PLAN.md               本项目所实现的研究计划
+└── scripts/              bootstrap.sh、walkthrough.py
 ```
 
 `models/`（下载的快照）和 `runs/`（所有生成的证据）都在本地生成，不纳入 git 管理。文档中指向 `runs/` 的链接要在运行上述命令之后才能打开。
@@ -221,7 +220,7 @@ nano_inspect/
 - 采集会记录运行、层、token、位置、阶段、位点、形状、dtype 和版本等元数据，并在前向传播之前估算字节预算并强制执行。干预使用有作用域的 hook，退出时（包括异常退出）一律移除。
 - Steering 有效只说明在所测试的干预下行为可控，并不证明模型存在唯一的语义表示。
 
-研究计划见 [PLAN.md](PLAN.md)，如何阅读图谱见 [docs/architecture.zh.md](docs/architecture.zh.md)，已验证的里程碑和尚存的局限见 [docs/acceptance.md](docs/acceptance.md)（英文）。
+如何阅读图谱见 [docs/architecture.zh.md](docs/architecture.zh.md)，完整的实验记录与结论见 [docs/findings.md](docs/findings.md)（英文）。
 
 ## 许可证
 

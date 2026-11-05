@@ -204,10 +204,9 @@ nano_inspect/
 │   ├── server.py  web/   stdlib HTTP server and the browser front end
 │   └── cli.py            the `nanoinspect` command
 ├── configs/              model, trace and experiment settings
-├── docs/                 architecture notes (EN / 中文), findings, acceptance record
+├── docs/                 architecture notes (EN / 中文) and experimental findings
 ├── tests/                38 tests (tiny random models + integration on the real checkpoint)
-├── scripts/              bootstrap.sh, walkthrough.py
-└── PLAN.md               the research plan this implements
+└── scripts/              bootstrap.sh, walkthrough.py
 ```
 
 `models/` (the downloaded snapshot) and `runs/` (all generated evidence) are created locally and are not tracked by git. Links into `runs/` in the docs resolve after you run the commands above.
@@ -219,7 +218,7 @@ nano_inspect/
 - Capture records run, layer, token, position, phase, site, shape, dtype and revision metadata, and it enforces a byte budget estimated before the forward pass. Interventions use scoped hooks that are removed on exit, even after exceptions.
 - A steering effect demonstrates controllability under the tested intervention; it does not establish a unique semantic representation.
 
-See [PLAN.md](PLAN.md) for the research plan, [docs/architecture.md](docs/architecture.md) for how to read the atlas, and [docs/acceptance.md](docs/acceptance.md) for the verified milestones and remaining limitations.
+See [docs/architecture.md](docs/architecture.md) for how to read the atlas and [docs/findings.md](docs/findings.md) for the recorded experimental findings.
 
 ## License
 

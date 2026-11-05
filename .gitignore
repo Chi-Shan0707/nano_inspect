@@ -5,3 +5,6 @@ __pycache__/
 models/
 runs/
 .cache/
+PLAN.md
+TODO.md
+docs/acceptance.md
