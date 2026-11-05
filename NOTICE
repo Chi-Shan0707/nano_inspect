@@ -1,0 +1,10 @@
+nano_inspect
+Copyright 2026 Chi-Shan0707
+
+This product includes software adapted from Hugging Face Transformers
+(src/nanoinspect/adapters/qwen35.py), Copyright 2018- The Hugging Face team,
+licensed under the Apache License, Version 2.0. The upstream license is kept
+in src/nanoinspect/adapters/LICENSE.transformers.
+
+Model weights (Qwen/Qwen3.5-0.8B) are not distributed with this repository;
+they are downloaded separately and are subject to their own license.

@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Create (or update) the dedicated conda environment from the pinned locks.
+#   CONDA_BIN      conda executable (default $CONDA_EXE, else conda on PATH)
 #   ENV_NAME       environment name (default nano-interpretability)
 #   PIP_ARGS       extra pip flags (default --no-cache-dir)
 #   DOCTOR_OUTPUT  where `nanoinspect doctor` writes its report (default runs/doctor.json)
 set -euo pipefail
 cd "$(dirname "$0")/.."
-CONDA_BIN="${CONDA_BIN:-/home/chishan/miniconda3/bin/conda}"
+CONDA_BIN="${CONDA_BIN:-${CONDA_EXE:-conda}}"
 ENV_NAME="${ENV_NAME:-nano-interpretability}"
 PIP_ARGS="${PIP_ARGS:---no-cache-dir}"
 if ! "$CONDA_BIN" env list | awk '{print $1}' | grep -qx "$ENV_NAME"; then
