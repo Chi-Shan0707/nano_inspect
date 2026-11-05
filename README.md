@@ -43,7 +43,7 @@ Open the generated `report.html` directly in a browser. Reports link to the JSON
 
 ## Interactive workbench
 
-`nanoinspect serve` starts a local web UI at `http://127.0.0.1:8765` (`--port`, `--host`, `--no-preload`). It is built for self-study: every view states the question it answers, explains the idea with formulas (concept boxes, hover glossary), runs the model on **your own input** and summarizes the result in a generated "What the data says" box. Example chips only pre-fill the editable form. The server uses only the standard library and loads the model once. Analyses run one at a time, and each registers scoped hooks that are removed when it returns.
+`nanoinspect serve` starts a local web UI at `http://127.0.0.1:8765` (`--port`, `--host`, `--no-preload`). It is built for self-study: every view states the question it answers, explains the idea with formulas (concept boxes, hover glossary), runs the model on **your own input** and summarizes the result in a generated "What the data says" box. Example chips only pre-fill the editable form. The server uses only the standard library and loads the model once. Analyses run one at a time, and each registers scoped hooks that are removed when it returns. The **EN / 中文** button in the header switches all explanatory text, generated observations and the glossary to Chinese, keeping key concepts (embedding, residual stream, logit lens, …) in English. It re-renders the current results without rerunning the model; the Chinese architecture notes live in `docs/architecture.zh.md`.
 
 | View | What you do and see |
 | --- | --- |

@@ -431,8 +431,9 @@ def steer_sweep(runtime, prompt, layer, alphas, direction="contrastive", control
 def architecture(inventory_path=ROOT / "runs/inventory/inventory.json", model_dir=None):
     """Architecture summary from the M1 inventory (or just the model config when no inventory exists)."""
     inventory_path = Path(inventory_path)
-    doc = ROOT / "docs/architecture.md"
-    result = {"notes": doc.read_text() if doc.is_file() else None, "inventory": inventory_path.is_file()}
+    doc, doc_zh = ROOT / "docs/architecture.md", ROOT / "docs/architecture.zh.md"
+    result = {"notes": doc.read_text() if doc.is_file() else None,
+              "notes_zh": doc_zh.read_text() if doc_zh.is_file() else None, "inventory": inventory_path.is_file()}
     if not inventory_path.is_file():
         from .runtime import read_config
         config_path = Path(model_dir or ROOT / read_config()["model_dir"]) / "config.json"

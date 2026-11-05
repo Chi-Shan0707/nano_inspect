@@ -44,6 +44,9 @@ nav button.active .n { background: var(--accent); color: #fff; }
 .pill.ready::before { color: var(--good); }
 .pill.loading::before { color: var(--warning); }
 .pill.error::before { color: var(--critical); }
+.lang { display: inline-flex; flex-shrink: 0; padding: 2px; border: 1px solid var(--border); border-radius: 999px; background: none; cursor: pointer; font-size: 12px; }
+.lang span { padding: 2px 9px; border-radius: 999px; color: var(--ink-2); }
+.lang span.active { background: var(--accent); color: #fff; font-weight: 600; }
 
 /* ---------- layout ---------- */
 main { max-width: 1320px; margin: 0 auto; padding: 20px 28px 80px; }
